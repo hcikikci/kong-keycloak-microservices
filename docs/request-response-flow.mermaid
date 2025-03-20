@@ -4,6 +4,7 @@ sequenceDiagram
     participant Keycloak
     participant Microservice
     
+    Note over Client,Keycloak: Initial Authentication
     Client->>Kong: 1. Request protected resource
     Kong->>Client: 2. Redirect to Keycloak login
     Client->>Keycloak: 3. Authenticate with credentials
@@ -11,13 +12,24 @@ sequenceDiagram
     Client->>Kong: 5. Request with authorization code
     Kong->>Keycloak: 6. Exchange code for tokens
     Keycloak->>Kong: 7. Return access & refresh tokens
-    Kong->>Microservice: 8. Forward request with token
-    Microservice->>Kong: 9. Response
-    Kong->>Client: 10. Response
+    Kong->>Kong: 8. Cache JWKS for future validations
+    Kong->>Microservice: 9. Forward request with token claims in headers
+    Microservice->>Kong: 10. Response
+    Kong->>Client: 11. Response
     
     Note over Client,Kong: Subsequent requests
-    Client->>Kong: 11. Request with access token
-    Kong->>Kong: 12. Validate token
-    Kong->>Microservice: 13. Forward authenticated request
-    Microservice->>Kong: 14. Response
-    Kong->>Client: 15. Response
+    Client->>Kong: 12. Request with access token
+    Kong->>Kong: 13. Offline token validation using cached JWKS
+    Kong->>Microservice: 14. Forward request with validated claims
+    Microservice->>Kong: 15. Response
+    Kong->>Client: 16. Response
+    
+    Note over Client,Keycloak: Token refresh
+    Client->>Kong: 17. Request with expired access token
+    Kong->>Kong: 18. Detect expired token
+    Kong->>Keycloak: 19. Use refresh token to get new access token
+    Keycloak->>Kong: 20. Return new access & refresh tokens
+    Kong->>Client: 21. Return new tokens in response headers
+    Kong->>Microservice: 22. Forward request with new token claims
+    Microservice->>Kong: 23. Response
+    Kong->>Client: 24. Response

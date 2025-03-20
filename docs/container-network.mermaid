@@ -1,15 +1,69 @@
-graph LR
-    Client[Client] -->|8000| Kong
-    Developer[Developer] -->|8001| Kong
-    Developer -->|8080| Keycloak
+graph TB
+    Client[Client] -->|HTTPS 443| LB[Load Balancer]
+    Dev[Developer] -->|Secured Admin 8444| LB
+    LB -->|8000| Kong
     
-    subgraph "Container Environment"
-        Kong -->|shared-net| Keycloak
-        Kong -->|kong-net| KongDB
-        Keycloak -->|keycloak-net| KeycloakDB
+    subgraph "External DMZ"
+        LB
+        Keycloak
+        WAF[Web Application Firewall]
     end
     
+    WAF -->|Protects| Keycloak
+    LB -->|Routes to| WAF
+    
+    subgraph "Internal Network"
+        subgraph "Gateway Layer"
+            Kong
+            KongReplica[Kong Replica]
+        end
+        
+        subgraph "Database Layer"
+            KongDB
+            KeycloakDB
+        end
+        
+        subgraph "Service Layer"
+            Service1[Microservice 1]
+            Service2[Microservice 2]
+        end
+    end
+    
+    Kong -->|JWT Validation| Keycloak
+    Kong -->|Proxy APIs| Service1
+    Kong -->|Proxy APIs| Service2
+    KongReplica -->|Proxy APIs| Service1
+    KongReplica -->|Proxy APIs| Service2
+    
+    Kong <-->|Shared Config| KongReplica
+    Kong -->|Stored Data| KongDB
+    KongReplica -->|Stored Data| KongDB
+    Keycloak -->|Stored Data| KeycloakDB
+    
+    subgraph "Security Infrastructure"
+        Vault[Secret Vault]
+        Monitor[Monitoring]
+    end
+    
+    Vault -->|Provides Secrets| Kong
+    Vault -->|Provides Secrets| KongReplica
+    Vault -->|Provides Secrets| Keycloak
+    Monitor -->|Observes| Kong
+    Monitor -->|Observes| KongReplica
+    Monitor -->|Observes| Keycloak
+    Monitor -->|Observes| Service1
+    Monitor -->|Observes| Service2
+    
     style Kong fill:#77b3d4,stroke:#333,stroke-width:2px
+    style KongReplica fill:#77b3d4,stroke:#333,stroke-width:2px
     style Keycloak fill:#87bc45,stroke:#333,stroke-width:2px
     style Client fill:#f5a742,stroke:#333,stroke-width:2px
-    style Developer fill:#f5a742,stroke:#333,stroke-width:2px
+    style Dev fill:#f5a742,stroke:#333,stroke-width:2px
+    style LB fill:#99ccff,stroke:#333,stroke-width:2px
+    style WAF fill:#ff9999,stroke:#333,stroke-width:2px
+    style Vault fill:#ffcc99,stroke:#333,stroke-width:2px
+    style Monitor fill:#99ffcc,stroke:#333,stroke-width:2px
+    style Service1 fill:#b276b2,stroke:#333,stroke-width:2px
+    style Service2 fill:#b276b2,stroke:#333,stroke-width:2px
+    style KongDB fill:#f5a742,stroke:#333,stroke-width:2px
+    style KeycloakDB fill:#f5a742,stroke:#333,stroke-width:2px

@@ -1,43 +1,110 @@
-subgraph "Docker Compose Environment"
-    subgraph "Kong Container"
-        KongService[Kong Service]
-        KongOIDC[OIDC Plugin]
+graph TB
+    subgraph "Docker Compose Environment"
+        %% Main Traffic Flow
+        Client([Client]) --> LB
+        LB -->|Routes to| KongService1 & KongService2
+        
+        subgraph "API Gateway Layer"
+            subgraph "Kong Containers"
+                KongService1[Kong Service 1]
+                KongService2[Kong Service 2]
+                
+                subgraph "Kong Plugins"
+                    KongOIDC[OIDC Plugin]
+                    KongRateLimiting[Rate Limiting Plugin]
+                    KongACL[ACL Plugin]
+                end
+                
+                KongMigration[Kong Migration]
+            end
+            
+            subgraph "Load Balancer"
+                LB[Traefik/Nginx]
+            end
+        end
+        
+        subgraph "Authentication Layer"
+            subgraph "Keycloak Containers"
+                KeycloakMaster[Keycloak Master]
+                KeycloakSlave[Keycloak Slave]
+                KeycloakHealthcheck[Keycloak Healthcheck]
+            end
+        end
+        
+        subgraph "Database Layer"
+            subgraph "Database Containers"
+                KongDB[(Kong PostgreSQL)]
+                KeycloakDB[(Keycloak PostgreSQL)]
+                DBBackup[Backup Service]
+            end
+        end
+        
+        subgraph "Network Layer"
+            subgraph "Networks"
+                PublicNet[Public Network]
+                KongNet[Kong Network]
+                KeycloakNet[Keycloak Network]
+                SharedNet[Shared Network]
+                DBNet[Database Network]
+            end
+        end
+        
+        subgraph "Observability Layer"
+            subgraph "Security & Monitoring"
+                Vault[HashiCorp Vault]
+                Prometheus[Prometheus]
+                Grafana[Grafana]
+                Loki[Loki Log Aggregator]
+            end
+        end
+        
+        %% Kong Plugin Connections
+        KongService1 -->|Uses| KongOIDC & KongRateLimiting & KongACL
+        KongService2 -->|Uses| KongOIDC & KongRateLimiting & KongACL
+        
+        %% Database Initialization and Connections
+        KongMigration -->|Initializes| KongDB
+        KongService1 & KongService2 -->|Connects to| KongDB
+        
+        %% Keycloak System
+        KeycloakMaster -->|Replicates to| KeycloakSlave
+        KeycloakHealthcheck -->|Monitors| KeycloakMaster & KeycloakSlave
+        KeycloakMaster & KeycloakSlave -->|Connects to| KeycloakDB
+        
+        %% Database Backup Flow
+        DBBackup -->|Backs up| KongDB & KeycloakDB
+        
+        %% Security and Secrets Management
+        Vault -->|Provides secrets to| KongService1 & KongService2 & KeycloakMaster & KeycloakSlave
+        
+        %% Monitoring System
+        Prometheus -->|Monitors| KongService1 & KongService2 & KeycloakMaster & KeycloakSlave & KongDB & KeycloakDB
+        Grafana -->|Visualizes| Prometheus
+        Loki -->|Collects logs from| KongService1 & KongService2 & KeycloakMaster & KeycloakSlave
+        
+        %% Network Connections - Simplified but retaining essential info
+        LB -->|Connected to| PublicNet
+        KongService1 & KongService2 -->|Connected to| KongNet & SharedNet
+        KeycloakMaster & KeycloakSlave -->|Connected to| KeycloakNet & SharedNet
+        KongDB & KeycloakDB -->|Connected to| DBNet
+        KongNet & KeycloakNet -->|Connected to| DBNet
     end
-    
-    subgraph "Keycloak Container"
-        KeycloakService[Keycloak Service]
-        KeycloakRealm[Realm Configuration]
-        KeycloakClient[Kong Client]
-    end
-    
-    subgraph "Database Containers"
-        KongDB[(Kong PostgreSQL)]
-        KeycloakDB[(Keycloak PostgreSQL)]
-    end
-    
-    subgraph "Networks"
-        KongNet[Kong Network]
-        KeycloakNet[Keycloak Network]
-        SharedNet[Shared Network]
-    end
-    
-    KongService -->|Uses| KongOIDC
-    KeycloakService -->|Configures| KeycloakRealm
-    KeycloakRealm -->|Contains| KeycloakClient
-    
-    KongService -->|Connects to| KongDB
-    KeycloakService -->|Connects to| KeycloakDB
-    
-    KongService -->|On| KongNet
-    KongService -->|On| SharedNet
-    KeycloakService -->|On| KeycloakNet
-    KeycloakService -->|On| SharedNet
-    
-    KongDB -->|On| KongNet
-    KeycloakDB -->|On| KeycloakNet
-end
 
-style KongService fill:#77b3d4,stroke:#333,stroke-width:2px
-style KeycloakService fill:#87bc45,stroke:#333,stroke-width:2px
-style KongDB fill:#f5a742,stroke:#333,stroke-width:2px
-style KeycloakDB fill:#f5a742,stroke:#333,stroke-width:2px
+    %% Style definitions for better readability
+    classDef gateway fill:#77b3d4,stroke:#333,stroke-width:2px
+    classDef keycloak fill:#87bc45,stroke:#333,stroke-width:2px
+    classDef database fill:#f5a742,stroke:#333,stroke-width:2px
+    classDef loadbalancer fill:#99ccff,stroke:#333,stroke-width:2px
+    classDef security fill:#ff9999,stroke:#333,stroke-width:2px
+    classDef monitoring fill:#c299ff,stroke:#333,stroke-width:2px
+    classDef logging fill:#ffcc99,stroke:#333,stroke-width:2px
+    classDef client fill:#d8f8e4,stroke:#333,stroke-width:2px
+    
+    class Client client
+    class KongService1,KongService2,KongOIDC,KongRateLimiting,KongACL,KongMigration gateway
+    class KeycloakMaster,KeycloakSlave,KeycloakHealthcheck keycloak
+    class KongDB,KeycloakDB,DBBackup database
+    class LB loadbalancer
+    class Vault security
+    class Prometheus,Grafana monitoring
+    class Loki logging

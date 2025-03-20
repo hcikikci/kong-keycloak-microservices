@@ -1,8 +1,16 @@
 graph TD
     Client[Client Applications] -->|Request| Kong[Kong API Gateway]
     Kong -->|Protected API Requests| Microservices[Microservices]
-    Kong -->|Authenticate/Authorize| Keycloak[Keycloak Auth Server]
-    Keycloak -->|User Info/Validation| Kong
+    Kong -->|Token Validation/Auth| Keycloak[Keycloak Auth Server]
+    
+    subgraph "DMZ Layer"
+        Keycloak
+        WAF[Web Application Firewall]
+        LB[Load Balancer]
+    end
+    
+    WAF -->|Protects| Keycloak
+    LB -->|Distributes Load| Keycloak
     
     subgraph Databases
         KongDB[(Kong Database)]
@@ -12,8 +20,22 @@ graph TD
     Kong -->|Store Config/Data| KongDB
     Keycloak -->|Store Users/Config| KeycloakDB
     
+    subgraph "Security Components"
+        CertManager[Certificate Manager]
+        SecretStore[Secret Store]
+    end
+    
+    CertManager -->|Provides TLS| Kong
+    CertManager -->|Provides TLS| Keycloak
+    SecretStore -->|Secure Credentials| Kong
+    SecretStore -->|Secure Credentials| Keycloak
+    
     style Kong fill:#77b3d4,stroke:#333,stroke-width:2px
     style Keycloak fill:#87bc45,stroke:#333,stroke-width:2px
     style Client fill:#f5a742,stroke:#333,stroke-width:2px
     style Microservices fill:#b276b2,stroke:#333,stroke-width:2px
     style Databases fill:#f5f5f5,stroke:#333,stroke-width:1px
+    style WAF fill:#ff9999,stroke:#333,stroke-width:2px
+    style LB fill:#99ccff,stroke:#333,stroke-width:2px
+    style CertManager fill:#99ff99,stroke:#333,stroke-width:2px
+    style SecretStore fill:#ffcc99,stroke:#333,stroke-width:2px
