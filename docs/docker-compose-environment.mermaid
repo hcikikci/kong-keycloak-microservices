@@ -1,0 +1,43 @@
+subgraph "Docker Compose Environment"
+    subgraph "Kong Container"
+        KongService[Kong Service]
+        KongOIDC[OIDC Plugin]
+    end
+    
+    subgraph "Keycloak Container"
+        KeycloakService[Keycloak Service]
+        KeycloakRealm[Realm Configuration]
+        KeycloakClient[Kong Client]
+    end
+    
+    subgraph "Database Containers"
+        KongDB[(Kong PostgreSQL)]
+        KeycloakDB[(Keycloak PostgreSQL)]
+    end
+    
+    subgraph "Networks"
+        KongNet[Kong Network]
+        KeycloakNet[Keycloak Network]
+        SharedNet[Shared Network]
+    end
+    
+    KongService -->|Uses| KongOIDC
+    KeycloakService -->|Configures| KeycloakRealm
+    KeycloakRealm -->|Contains| KeycloakClient
+    
+    KongService -->|Connects to| KongDB
+    KeycloakService -->|Connects to| KeycloakDB
+    
+    KongService -->|On| KongNet
+    KongService -->|On| SharedNet
+    KeycloakService -->|On| KeycloakNet
+    KeycloakService -->|On| SharedNet
+    
+    KongDB -->|On| KongNet
+    KeycloakDB -->|On| KeycloakNet
+end
+
+style KongService fill:#77b3d4,stroke:#333,stroke-width:2px
+style KeycloakService fill:#87bc45,stroke:#333,stroke-width:2px
+style KongDB fill:#f5a742,stroke:#333,stroke-width:2px
+style KeycloakDB fill:#f5a742,stroke:#333,stroke-width:2px

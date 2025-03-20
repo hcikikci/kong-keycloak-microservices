@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant Client
+    participant Kong as Kong API Gateway
+    participant Keycloak
+    participant Microservice
+    
+    Client->>Kong: 1. Request protected resource
+    Kong->>Client: 2. Redirect to Keycloak login
+    Client->>Keycloak: 3. Authenticate with credentials
+    Keycloak->>Client: 4. Redirect with authorization code
+    Client->>Kong: 5. Request with authorization code
+    Kong->>Keycloak: 6. Exchange code for tokens
+    Keycloak->>Kong: 7. Return access & refresh tokens
+    Kong->>Microservice: 8. Forward request with token
+    Microservice->>Kong: 9. Response
+    Kong->>Client: 10. Response
+    
+    Note over Client,Kong: Subsequent requests
+    Client->>Kong: 11. Request with access token
+    Kong->>Kong: 12. Validate token
+    Kong->>Microservice: 13. Forward authenticated request
+    Microservice->>Kong: 14. Response
+    Kong->>Client: 15. Response

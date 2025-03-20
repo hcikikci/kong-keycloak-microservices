@@ -1,0 +1,15 @@
+graph LR
+    Client[Client] -->|8000| Kong
+    Developer[Developer] -->|8001| Kong
+    Developer -->|8080| Keycloak
+    
+    subgraph "Container Environment"
+        Kong -->|shared-net| Keycloak
+        Kong -->|kong-net| KongDB
+        Keycloak -->|keycloak-net| KeycloakDB
+    end
+    
+    style Kong fill:#77b3d4,stroke:#333,stroke-width:2px
+    style Keycloak fill:#87bc45,stroke:#333,stroke-width:2px
+    style Client fill:#f5a742,stroke:#333,stroke-width:2px
+    style Developer fill:#f5a742,stroke:#333,stroke-width:2px
